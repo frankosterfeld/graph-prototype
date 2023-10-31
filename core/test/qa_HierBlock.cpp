@@ -39,7 +39,7 @@ protected:
     std::vector<gr::property_map>     _tags_at_output;
     std::unique_ptr<gr::SettingsBase> _settings = std::make_unique<gr::BasicSettings<HierBlock<T>>>(*this);
 
-    using in_port_t                             = gr::PortIn<T>;
+    using in_port_t = gr::PortIn<T>;
 
     gr::scheduler::Simple<> _scheduler;
 
@@ -68,6 +68,21 @@ public:
 
     void
     init(std::shared_ptr<gr::Sequence> /*progress*/, std::shared_ptr<gr::thread_pool::BasicThreadPool> /*ioThreadPool*/) override {}
+
+    void
+    start() override {}
+
+    void
+    stop() override {}
+
+    void
+    pause() override {}
+
+    void
+    resume() override {}
+
+    void
+    reset() override {}
 
     [[nodiscard]] std::string_view
     name() const override {
@@ -137,7 +152,7 @@ struct fixed_source : public gr::Block<fixed_source<T>> {
     gr::PortOut<T, gr::RequiredSamples<1, 1024>> out;
     std::size_t                                  remaining_events_count;
 
-    T                                            value = 1;
+    T value = 1;
 
     gr::work::Result
     work(std::size_t requested_work) {
@@ -184,11 +199,11 @@ gr::Graph
 make_graph(std::size_t events_count) {
     gr::Graph graph;
 
-    auto     &source_leftBlock  = graph.emplaceBlock<fixed_source<double>>({ { "remaining_events_count", events_count } });
-    auto     &source_rightBlock = graph.emplaceBlock<fixed_source<double>>({ { "remaining_events_count", events_count } });
-    auto     &sink              = graph.emplaceBlock<cout_sink<double>>({ { "remaining", events_count } });
+    auto &source_leftBlock  = graph.emplaceBlock<fixed_source<double>>({ { "remaining_events_count", events_count } });
+    auto &source_rightBlock = graph.emplaceBlock<fixed_source<double>>({ { "remaining_events_count", events_count } });
+    auto &sink              = graph.emplaceBlock<cout_sink<double>>({ { "remaining", events_count } });
 
-    auto     &hier              = graph.addBlock(std::make_unique<HierBlock<double>>());
+    auto &hier = graph.addBlock(std::make_unique<HierBlock<double>>());
 
     graph.connect(source_leftBlock, 0, hier, 0);
     graph.connect(source_rightBlock, 0, hier, 1);

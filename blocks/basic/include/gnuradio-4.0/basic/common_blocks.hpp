@@ -42,8 +42,8 @@ class builtin_counter : public gr::Block<builtin_counter<T>> {
 public:
     static std::size_t s_event_count;
 
-    gr::PortIn<T>      in;
-    gr::PortOut<T>     out;
+    gr::PortIn<T>  in;
+    gr::PortOut<T> out;
 
     [[nodiscard]] constexpr auto
     processOne(T a) const noexcept {
@@ -114,6 +114,21 @@ public:
 
     void
     init(std::shared_ptr<gr::Sequence> /*progress*/, std::shared_ptr<gr::thread_pool::BasicThreadPool> /*ioThreadPool*/) override {}
+
+    void
+    start() override {}
+
+    void
+    stop() override {}
+
+    void
+    pause() override {}
+
+    void
+    resume() override {}
+
+    void
+    reset() override {}
 
     [[nodiscard]] std::string_view
     name() const override {

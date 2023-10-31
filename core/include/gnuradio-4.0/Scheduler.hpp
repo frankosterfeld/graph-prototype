@@ -40,10 +40,18 @@ public:
     }
 
     void
+    startBlocks() {
+        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->start(); });
+    }
+
+    void
     stop() {
         if (_state == STOPPED || _state == ERROR) {
             return;
         }
+
+        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->stop(); });
+
         if (_state == RUNNING) {
             requestStop();
         }
@@ -56,11 +64,22 @@ public:
         if (_state == PAUSED || _state == ERROR) {
             return;
         }
+
+        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->pause(); });
+
         if (_state == RUNNING) {
             requestPause();
         }
         waitDone();
         _state = PAUSED;
+    }
+
+    void
+    resume() {
+        if (_state != PAUSED || _state == ERROR) {
+            return;
+        }
+        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->resume(); });
     }
 
     void
@@ -104,6 +123,8 @@ public:
 
     void
     reset() {
+        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->reset(); });
+
         // since it is not possible to set up the graph connections a second time, this method leaves the graph in the initialized state with clear buffers.
         switch (_state) {
         case IDLE: init(); break;
@@ -138,10 +159,10 @@ public:
 
     void
     poolWorker(const std::function<work::Result()> &work, std::size_t n_batches) {
-        auto    &profiler_handler = _profiler.forThisThread();
+        auto &profiler_handler = _profiler.forThisThread();
 
-        uint32_t done             = 0;
-        uint32_t progress_count   = 0;
+        uint32_t done           = 0;
+        uint32_t progress_count = 0;
         while (done < n_batches && !_stop_requested) {
             auto pe                 = profiler_handler.startCompleteEvent("scheduler_base.work");
             bool something_happened = work().status == work::Status::OK;
@@ -245,6 +266,7 @@ public:
 
     void
     start() {
+        this->startBlocks();
         switch (this->_state) {
         case IDLE: this->init(); break;
         case STOPPED: this->reset(); break;
@@ -384,6 +406,7 @@ public:
 
     void
     start() {
+        this->startBlocks();
         switch (this->_state) {
         case IDLE: this->init(); break;
         case STOPPED: this->reset(); break;

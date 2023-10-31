@@ -182,6 +182,36 @@ public:
             = 0;
 
     /**
+     * @brief to be invoked by Scheduler->start() at the very beginning
+     */
+    virtual void
+    start() = 0;
+
+    /**
+     * @brief to be invoked by Scheduler->stop() at the very beginning
+     */
+    virtual void
+    stop() = 0;
+
+    /**
+     * @brief to be invoked by Scheduler->reset() at the very beginning
+     */
+    virtual void
+    reset() = 0;
+
+    /**
+     * @brief to be invoked by Scheduler->pause() at the very beginning
+     */
+    virtual void
+    pause() = 0;
+
+    /**
+     * @brief to be invoked by Scheduler->resume() at the very beginning
+     */
+    virtual void
+    resume() = 0;
+
+    /**
      * @brief returns scheduling hint that invoking the work(...) function may block on IO or system-calls
      */
     [[nodiscard]] virtual constexpr bool
@@ -256,7 +286,7 @@ public:
 };
 
 namespace detail {
-template <typename T, typename... Ts>
+template<typename T, typename... Ts>
 constexpr bool contains_type = (std::is_same_v<T, Ts> || ...);
 }
 
@@ -290,7 +320,7 @@ private:
         _dynamicPortsLoader = [this] {
             if (_dynamicPortsLoaded) return;
 
-            using Node        = std::remove_cvref_t<decltype(blockRef())>;
+            using Node = std::remove_cvref_t<decltype(blockRef())>;
 
             auto registerPort = [&](auto &where, [[maybe_unused]] auto direction, [[maybe_unused]] auto index, auto &&t) {
                 auto processPort = []<typename Port>(auto &where_, Port &port) -> auto & {
@@ -358,7 +388,7 @@ public:
     }
 
     template<typename... Args>
-        requires (!detail::contains_type<BlockWrapper, std::decay_t<Args>...> && sizeof...(Args) > 1)
+        requires(!detail::contains_type<BlockWrapper, std::decay_t<Args>...> && sizeof...(Args) > 1)
     explicit BlockWrapper(Args &&...args) : _block{ std::forward<Args>(args)... } {
         createDynamicPortsLoader();
     }
@@ -369,6 +399,41 @@ public:
     init(std::shared_ptr<gr::Sequence> progress, std::shared_ptr<gr::thread_pool::BasicThreadPool> ioThreadPool) override {
         return blockRef().init(progress, ioThreadPool);
     }
+
+    void
+    start() override {
+        if constexpr (requires(std::decay_t<decltype(blockRef())> t) { t.start(); }) {
+            blockRef().start();
+        }
+    }
+
+    void
+    stop() override {
+        if constexpr (requires(std::decay_t<decltype(blockRef())> t) { t.stop(); }) {
+            blockRef().stop();
+        }
+    }
+
+    void
+    pause() override {
+        if constexpr (requires(std::decay_t<decltype(blockRef())> t) { t.pause(); }) {
+            blockRef().pause();
+        }
+    }
+
+    void
+    resume() override {
+        if constexpr (requires(std::decay_t<decltype(blockRef())> t) { t.resume(); }) {
+            blockRef().resume();
+        }
+    }
+
+    void
+    reset() override {
+        if constexpr (requires(std::decay_t<decltype(blockRef())> t) { t.reset(); }) {
+            blockRef().reset();
+        }
+    };
 
     [[nodiscard]] constexpr work::Result
     work(std::size_t requested_work = std::numeric_limits<std::size_t>::max()) override {
@@ -453,7 +518,7 @@ public: // TODO: consider making this private and to use accessors (that can be 
     bool                             _connected;
 
 public:
-    Edge()             = delete;
+    Edge() = delete;
 
     Edge(const Edge &) = delete;
 
@@ -578,7 +643,8 @@ private:
         if (result == ConnectionResult::SUCCESS) {
             auto *sourceNode      = findBlock(sourceNodeRaw).get();
             auto *destinationNode = findBlock(destinationNodeRaw).get();
-            _edges.emplace_back(sourceNode, PortIndexDefinition<std::size_t>{ sourcePortIndex, sourcePortSubIndex }, destinationNode, PortIndexDefinition<std::size_t>{ destinationPortIndex, destinationPortSubIndex }, minBufferSize, weight, name);
+            _edges.emplace_back(sourceNode, PortIndexDefinition<std::size_t>{ sourcePortIndex, sourcePortSubIndex }, destinationNode,
+                                PortIndexDefinition<std::size_t>{ destinationPortIndex, destinationPortSubIndex }, minBufferSize, weight, name);
         }
 
         return result;

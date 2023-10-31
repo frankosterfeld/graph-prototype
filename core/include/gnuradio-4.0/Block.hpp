@@ -1,8 +1,8 @@
 #ifndef GNURADIO_BLOCK_HPP
 #define GNURADIO_BLOCK_HPP
 
-#include <map>
 #include <limits>
+#include <map>
 
 #include <fmt/format.h>
 
@@ -204,12 +204,12 @@ concept PublishableSpan = std::ranges::contiguous_range<T> and std::ranges::outp
 static_assert(PublishableSpan<traits::block::detail::dummy_output_span<float>>);
 
 /**
- * @brief The 'node<Derived>' is a base class for blocks that perform specific signal processing operations. It stores
+ * @brief The 'Block<Derived>' is a base class for blocks that perform specific signal processing operations. It stores
  * references to its input and output 'ports' that can be zero, one, or many, depending on the use case.
- * As the base class for all user-defined nodes, it implements common convenience functions and a default public API
+ * As the base class for all user-defined blocks, it implements common convenience functions and a default public API
  * through the Curiously-Recurring-Template-Pattern (CRTP). For example:
  * @code
- * struct user_defined_block : node<user_defined_block> {
+ * struct user_defined_block : Block<user_defined_block> {
  *   IN<float> in;
  *   OUT<float> out;
  *   // implement one of the possible work or abstracted functions
@@ -222,7 +222,7 @@ static_assert(PublishableSpan<traits::block::detail::dummy_output_span<float>>);
  * types for input 'T' and for the return 'R':
  * @code
  * template<typename T, typename R>
- * struct user_defined_block : node<user_defined_block, IN<T, 0, N_MAX, "in">, OUT<R, 0, N_MAX, "out">> {
+ * struct user_defined_block : Block<user_defined_block, IN<T, 0, N_MAX, "in">, OUT<R, 0, N_MAX, "out">> {
  *   // implement one of the possible work or abstracted functions
  * };
  * @endcode
@@ -230,7 +230,7 @@ static_assert(PublishableSpan<traits::block::detail::dummy_output_span<float>>);
  * not require virtual functions or inheritance, which can have performance penalties in high-performance computing contexts).
  * Note: The template parameter '<Derived>' can be dropped once C++23's 'deducing this' is widely supported by compilers.
  *
- * The 'node<Derived>' implementation provides simple defaults for users who want to focus on generic signal-processing
+ * The 'Block<Derived>' implementation provides simple defaults for users who want to focus on generic signal-processing
  * algorithms and don't need full flexibility (and complexity) of using the generic `work_return_t work() {...}`.
  * The following defaults are defined for one of the two 'user_defined_block' block definitions (WIP):
  * <ul>
@@ -289,6 +289,19 @@ static_assert(PublishableSpan<traits::block::detail::dummy_output_span<float>>);
  *     * case sources: HW triggered vs. generating data per invocation (generators via Port::MIN)
  *     * case sinks: HW triggered vs. fixed-size consumer (may block/never finish for insufficient input data and fixed Port::MIN>0)
  * <ul>
+ *
+ * In addition derived classes can optionally implement any subset of the lifecycle methods ( `start()`, `stop()`, `reset()`, `pause()`, `resume()`).
+ * The Scheduler invokes these methods on each Block instance, if they are implemented, just before invoking its corresponding method of the same name.
+ * @code
+ * struct user_defined_block : public Block<user_defined_block> {
+ * void start() {...} // Implement any startup logic required for the block within this method.
+ * void stop() {...} // Use this method for handling any clean-up procedures.
+ * void pause() {...} // Implement logic to temporarily halt the block's operation, maintaining its current state.
+ * void resume() {...} // This method should contain logic to restart operations after a pause, continuing from the same state as when it was paused.
+ * void reset() {...} // Reset the block's state to defaults in this method.
+ * };
+ * @endcode
+ *
  * @tparam Derived the user-defined block CRTP: https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
  * @tparam Arguments NTTP list containing the compile-time defined port instances, setting structs, or other constraints.
  */
@@ -296,7 +309,7 @@ template<typename Derived, typename... Arguments>
 struct Block : protected std::tuple<Arguments...> {
     static std::atomic_size_t _unique_id_counter;
     template<typename T, gr::meta::fixed_string description = "", typename... Args>
-    using A                          = Annotated<T, description, Args...>;
+    using A = Annotated<T, description, Args...>;
 
     using base_t                     = Block<Derived, Arguments...>;
     using derived_t                  = Derived;
@@ -343,11 +356,11 @@ struct Block : protected std::tuple<Arguments...> {
         std::size_t in_samples{ 0 };  // number of input samples to process
         std::size_t out_samples{ 0 }; // number of output samples, calculated based on `numerator` and `denominator`
 
-        bool        in_at_least_one_port_has_data{ false }; // at least one port has data
-        bool        in_at_least_one_tag_available{ false }; // at least one port has a tag
+        bool in_at_least_one_port_has_data{ false }; // at least one port has data
+        bool in_at_least_one_tag_available{ false }; // at least one port has a tag
 
-        bool        has_sync_input_ports{ false };  // if all ports are async, status is not important
-        bool        has_sync_output_ports{ false }; // if all ports are async, status is not important
+        bool has_sync_input_ports{ false };  // if all ports are async, status is not important
+        bool has_sync_output_ports{ false }; // if all ports are async, status is not important
 
         constexpr bool
         enoughSamplesForOutputPorts(std::size_t n) {
@@ -383,7 +396,7 @@ protected:
 
     void
     updatePortsStatus() {
-        ports_status               = PortsStatus();
+        ports_status = PortsStatus();
 
         auto adjust_for_input_port = [&ps = ports_status]<PortLike Port>(Port &port) {
             if constexpr (std::remove_cvref_t<Port>::kIsSynch) {
@@ -776,8 +789,8 @@ protected:
     work::Result
     workInternal(std::size_t requested_work) {
         using gr::work::Status;
-        using TInputTypes             = traits::block::input_port_types<Derived>;
-        using TOutputTypes            = traits::block::output_port_types<Derived>;
+        using TInputTypes  = traits::block::input_port_types<Derived>;
+        using TOutputTypes = traits::block::output_port_types<Derived>;
 
         constexpr bool kIsSourceBlock = TInputTypes::size == 0;
         constexpr bool kIsSinkBlock   = TOutputTypes::size == 0;
@@ -883,14 +896,14 @@ protected:
                         return { requested_work, 0_UZ, work::Status::ERROR };
                     }
 
-                    ports_status.in_samples          = static_cast<std::size_t>(ports_status.in_samples / denominator) * denominator; // remove reminder
+                    ports_status.in_samples = static_cast<std::size_t>(ports_status.in_samples / denominator) * denominator; // remove reminder
 
-                    const std::size_t out_min_limit  = ports_status.out_min_samples;
-                    const std::size_t out_max_limit  = std::min(ports_status.out_available, ports_status.out_max_samples);
+                    const std::size_t out_min_limit = ports_status.out_min_samples;
+                    const std::size_t out_max_limit = std::min(ports_status.out_available, ports_status.out_max_samples);
 
-                    std::size_t       in_min_samples = static_cast<std::size_t>(static_cast<double>(out_min_limit) / ratio);
+                    std::size_t in_min_samples = static_cast<std::size_t>(static_cast<double>(out_min_limit) / ratio);
                     if (in_min_samples % denominator != 0) in_min_samples += denominator;
-                    std::size_t       in_min_wo_reminder = (in_min_samples / denominator) * denominator;
+                    std::size_t in_min_wo_reminder = (in_min_samples / denominator) * denominator;
 
                     const std::size_t in_max_samples     = static_cast<std::size_t>(static_cast<double>(out_max_limit) / ratio);
                     std::size_t       in_max_wo_reminder = (in_max_samples / denominator) * denominator;
@@ -1013,7 +1026,7 @@ protected:
 
         const auto input_spans = meta::tuple_transform(
                 [&self = self(), sync_in_samples = self().ports_status.in_samples]<typename PortOrCollection>(PortOrCollection &input_port_or_collection) noexcept {
-                    auto in_samples          = sync_in_samples;
+                    auto in_samples = sync_in_samples;
 
                     auto process_single_port = [&in_samples]<typename Port>(Port &&port) {
                         if constexpr (std::remove_cvref_t<Port>::kIsSynch) {
@@ -1034,7 +1047,7 @@ protected:
                 inputPorts(&self()));
         auto writers_tuple = meta::tuple_transform(
                 [&self = self(), sync_out_samples = ports_status.out_samples]<typename PortOrCollection>(PortOrCollection &output_port_or_collection) noexcept {
-                    auto out_samples         = sync_out_samples;
+                    auto out_samples = sync_out_samples;
 
                     auto process_single_port = [&out_samples]<typename Port>(Port &&port) {
                         if constexpr (std::remove_cvref_t<Port>::kIsSynch) {
