@@ -50,8 +50,6 @@ public:
             return;
         }
 
-        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->stop(); });
-
         if (_state == RUNNING) {
             requestStop();
         }
@@ -64,8 +62,6 @@ public:
         if (_state == PAUSED || _state == ERROR) {
             return;
         }
-
-        std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->pause(); });
 
         if (_state == RUNNING) {
             requestPause();
@@ -89,8 +85,10 @@ public:
             _running_threads.wait(running);
         }
         if (_state == REQUESTED_PAUSE) {
+            std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->pause(); });
             _state = PAUSED;
         } else {
+            std::ranges::for_each(this->_graph.blocks(), [](auto &b) { b->stop(); });
             _state = STOPPED;
         }
     }

@@ -303,8 +303,6 @@ const boost::ut::suite DataSinkTests = [] {
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
 
-        sink.stop(); // TODO the scheduler should call this
-
         auto lg = std::lock_guard{ m2 };
         expect(eq(chunksSeen1.load(), 201_UZ));
         expect(eq(chunksSeen2, 201_UZ));
@@ -364,8 +362,6 @@ const boost::ut::suite DataSinkTests = [] {
 
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
-
-        sink.stop(); // TODO the scheduler should call this
 
         std::vector<float> expected(kSamples);
         std::iota(expected.begin(), expected.end(), 0.0);
@@ -431,8 +427,6 @@ const boost::ut::suite DataSinkTests = [] {
 
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
-
-        sink.stop(); // TODO the scheduler should call this
 
         const auto &[receivedData, receivedTags] = polling.get();
         const auto expected_tags                 = { tags[0], tags[2] }; // triggers-only
@@ -504,8 +498,6 @@ const boost::ut::suite DataSinkTests = [] {
 
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
-
-        sink.stop(); // TODO the scheduler should call this
 
         const auto receivedData = poller_result.get();
         expect(eq(receivedDataCb, receivedData));
@@ -587,8 +579,6 @@ const boost::ut::suite DataSinkTests = [] {
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
 
-        sink.stop(); // TODO the scheduler should call this
-
         for (std::size_t i = 0; i < results.size(); ++i) {
             expect(eq(results[i].get(), expected[i]));
             expect(eq(resultsCb[i], expected[i]));
@@ -640,8 +630,6 @@ const boost::ut::suite DataSinkTests = [] {
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
 
-        sink.stop(); // TODO the scheduler should call this
-
         const auto &[receivedData, receivedTags] = polling.get();
         auto expectedStart                       = std::vector<float>{ 57000, 61999, 57001, 62000, 57002 };
         expect(eq(poller->drop_count.load(), 0u));
@@ -682,8 +670,6 @@ const boost::ut::suite DataSinkTests = [] {
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
 
-        sink.stop(); // TODO the scheduler should call this
-
         std::lock_guard lg{ m };
         auto            expectedStart = std::vector<float>{ 57000, 61999, 57001, 62000, 57002 };
         expect(eq(receivedData.size(), 2 * kTriggers));
@@ -723,8 +709,6 @@ const boost::ut::suite DataSinkTests = [] {
 
         gr::scheduler::Simple sched{ std::move(testGraph) };
         sched.runAndWait();
-
-        sink.stop(); // TODO the scheduler should call this
 
         const auto samplesSeen = polling.get();
         expect(eq(samplesSeen + poller->drop_count, static_cast<std::size_t>(kSamples)));
